@@ -4,7 +4,7 @@ pipeline {
         githubPush()
     }
     environment {
-        IMAGE_NAME_Frontend = "raichu08/Healthcare-Appointment-Management-Platform"
+        IMAGE_NAME_Frontend = "raichu08/healthcare-appointment-management-platform"
         IMAGE_TAG_Frontend = "v${BUILD_NUMBER}"
     }
     stages {
