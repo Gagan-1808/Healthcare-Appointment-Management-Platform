@@ -1,13 +1,17 @@
 pipeline {
     agent any
+
     triggers {
         githubPush()
     }
+
     environment {
         IMAGE_NAME_Frontend = "raichu08/healthcare-appointment-management-platform"
-        IMAGE_TAG_Frontend = "v${BUILD_NUMBER}"
+        IMAGE_TAG_Frontend  = "v${BUILD_NUMBER}"
     }
+
     stages {
+
         stage('Checkout Code') {
             steps {
                 echo "Fetching latest code from GitHub..."
@@ -17,63 +21,75 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building Docker images..."
+                echo "Building Docker image..."
+
+                sh """
+                    set -e
+                    docker build \
+                        -t ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend} .
+                """
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'Dhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
                     sh """
                         set -e
-                        docker build -t ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend} .
+
+                        echo "Logging into Docker Hub..."
+
+                        echo "\$DOCKER_PASS" | docker login \
+                            -u "\$DOCKER_USER" \
+                            --password-stdin
+
+                        echo "Pushing image..."
+
+                        docker push ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
+
+                        docker logout
                     """
                 }
             }
         }
 
-        stage('Push to Dockerhub and Logout') {
+        stage('Run Frontend Container') {
             steps {
-                script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'Dhub',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh """
-                            set -e
-                            echo "Logging into Docker..."
-                            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
-                            docker push ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
-                            docker logout
-                        """
-                    }
-                }
+                echo "Deploying frontend container..."
+
+                sh """
+                    set -e
+
+                    docker stop frontend || true
+                    docker rm frontend || true
+
+                    docker run -d \
+                        --name frontend \
+                        --restart unless-stopped \
+                        -p 80:80 \
+                        ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
+
+                    echo "Frontend container started."
+
+                    docker ps --filter name=frontend
+                """
             }
-        }
-        
-        stage('Run the app'){
-          steps{
-            script{
-
-              sh """
-                docker stop frontend || true
-                docker rm frontend || true
-
-                docker run -d \
-                  --name frontend \
-                  --restart unless-stopped \
-                  -p 80:80 \
-                  ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
-            """
-            }
-
-          }
-
         }
     }
 
     post {
         success {
-            echo "Docker Build, Test and Push completed successfully!"
+            echo "Docker Build, Push and Deployment completed successfully!"
         }
+
         failure {
-            echo "Docker Build, Test and Push failed!"
+            echo "Docker Build, Push or Deployment failed!"
         }
     }
 }
