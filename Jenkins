@@ -1,0 +1,75 @@
+pipeline {
+    agent any
+    triggers {
+        githubPush()
+    }
+    environment {
+        IMAGE_NAME_Frontend = "raichu08/Healthcare-Appointment-Management-Platform"
+        IMAGE_TAG_Frontend = "v${BUILD_NUMBER}"
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo "Fetching latest code from GitHub..."
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building Docker images..."
+                    sh """
+                        set -e
+                        docker build -t ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend} ./frontend
+                    """
+                }
+            }
+        }
+
+        stage('Push to Dockerhub and Logout') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'Dhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                            set -e
+                            echo "Logging into Docker..."
+                            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                            docker push ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
+                            docker logout
+                        """
+                    }
+                }
+            }
+        }
+    }
+    Stage('Run the app'){
+      steps{
+        script{
+          docker stop frontend || true
+          docker rm frontend || true
+
+          docker run -d \
+              --name frontend \
+              --restart unless-stopped \
+              -p 80:80 \
+              ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
+        
+        }
+
+      }
+
+    }
+    post {
+        success {
+            echo "Docker Build, Test and Push completed successfully!"
+        }
+        failure {
+            echo "Docker Build, Test and Push failed!"
+        }
+    }
+}
