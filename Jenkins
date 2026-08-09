@@ -21,7 +21,7 @@ pipeline {
                     echo "Building Docker images..."
                     sh """
                         set -e
-                        docker build -t ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend} ./frontend
+                        docker build -t ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend} .
                     """
                 }
             }
