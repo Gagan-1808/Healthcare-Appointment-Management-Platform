@@ -46,26 +46,28 @@ pipeline {
                 }
             }
         }
-    }
-    Stage('Run the app'){
-      steps{
-        script{
+        
+        stage('Run the app'){
+          steps{
+            script{
 
-          sh """
-            docker stop frontend || true
-            docker rm frontend || true
+              sh """
+                docker stop frontend || true
+                docker rm frontend || true
 
-          docker run -d \
-              --name frontend \
-              --restart unless-stopped \
-              -p 80:80 \
-              ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
-        """
+                docker run -d \
+                  --name frontend \
+                  --restart unless-stopped \
+                  -p 80:80 \
+                  ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
+            """
+            }
+
+          }
+
         }
-
-      }
-
     }
+
     post {
         success {
             echo "Docker Build, Test and Push completed successfully!"
