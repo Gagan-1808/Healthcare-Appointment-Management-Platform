@@ -50,15 +50,17 @@ pipeline {
     Stage('Run the app'){
       steps{
         script{
-          docker stop frontend || true
-          docker rm frontend || true
+
+          sh """
+            docker stop frontend || true
+            docker rm frontend || true
 
           docker run -d \
               --name frontend \
               --restart unless-stopped \
               -p 80:80 \
               ${IMAGE_NAME_Frontend}:${IMAGE_TAG_Frontend}
-        
+        """
         }
 
       }
